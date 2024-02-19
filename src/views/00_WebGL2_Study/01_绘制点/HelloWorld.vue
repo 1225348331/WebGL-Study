@@ -1,0 +1,41 @@
+<script setup>
+import { onMounted } from "vue";
+import VSHADER_SOURCE from "./vertexShader.vs";
+import FSHADER_SOURCE from "./fragmentShader.fs";
+import * as twgl from "twgl.js";
+onMounted(() => {
+  const gl = document.getElementById("canvas").getContext("webgl2");
+  const programInfo = twgl.createProgramInfo(gl, [
+    VSHADER_SOURCE,
+    FSHADER_SOURCE,
+  ]);
+  twgl.resizeCanvasToDisplaySize(gl.canvas);
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+  gl.useProgram(programInfo.program);
+  const arrays = {
+    a_Position: { numComponents: 2, data: [0.5, -0.5, 0, 0.5, -0.5, -0.5] },
+  };
+  const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
+  twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
+  twgl.drawBufferInfo(gl, bufferInfo, gl.POINTS);
+});
+</script>
+<template>
+  <div id="content">
+    <canvas id="canvas" width="800" height="800"></canvas>
+  </div>
+</template>
+<style lang="scss" scoped>
+#content {
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  background-color: transparent;
+  padding: 10px;
+  #canvas{
+    border: 1px solid green;
+  }
+}
+</style>
