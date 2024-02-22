@@ -4,7 +4,7 @@ import VSHADER_SOURCE from "./vertexShader.vs";
 import FSHADER_SOURCE from "./fragmentShader.fs";
 import * as twgl from "twgl.js";
 import { Pane } from "tweakpane";
-import { mat3, mat4, vec3 } from "gl-matrix";
+import { mat4, vec3 } from "gl-matrix";
 
 // 参数面板
 let pane = new Pane();
@@ -14,17 +14,15 @@ let params = {
   theta: 0,
   scaleX: 1,
   scaleY: 1,
-  near: 1.0,
-  far: 20.0,
   eye: {
-    x: 0.1,
-    y: 0.2,
-    z: 0.9,
+    x: 0,
+    y: 0,
+    z: 0.25,
   },
 };
 pane.addBinding(params, "x", {
-  min: -1.0,
-  max: 1.0,
+  min: -0.5,
+  max: 0.5,
   step: 0.01,
   label: "x轴平移",
 });
@@ -54,64 +52,34 @@ pane.addBinding(params, "scaleY", {
 });
 pane.addBinding(params, "eye", {
   x: {
-    min: -100,
-    max: 100,
+    min: -1,
+    max: 1,
     step: 0.1,
   },
   y: {
-    min: -100,
-    max: 100,
+    min: -1,
+    max: 1,
     step: 0.1,
   },
   z: {
-    min: -100,
-    max: 100,
+    min: -1,
+    max: 1,
     step: 0.1,
   },
   label: "视点",
 });
-pane.addBinding(params, "near", {
-  min: 1.0,
-  max: 10.0,
-  step: 1.0,
-  label: "近裁剪面",
-});
-pane.addBinding(params, "far", {
-  min: 20.0,
-  max: 30.0,
-  step: 1.0,
-  label: "远裁剪面",
-});
 
-let arrays1 = {
+let arrays = {
   a_Position: {
-    numComponents: 3,
-    data: [0, 2.5, -4.0, -2.5, -2.5, -4.0, 2.5, -2.5, -4.0],
-  },
-  a_Color: {
-    numComponents: 3,
-    data: [1, 0, 0, 1, 0, 0, 1, 0, 0],
+    numComponents: 2,
+    data: [-0.5, -0.5, 0.5, -0.5, 0.5, 0.5],
   },
 };
-let arrays2 = {
-  a_Position: {
-    numComponents: 3,
-    data: [0, 3.0, -4.0, -3, -3, -4.0, 3, -3.0, -4.0],
-  },
-  a_Color: {
-    numComponents: 3,
-    data: [0, 1, 0, 0, 1, 0, 0, 1, 0],
-  },
-};
-
 // 模型变换矩阵
 const modelMatrix = mat4.create();
 const viewMatrix = mat4.create();
-const projMatrix = mat4.create();
-
 let uniform = {
   u_ModelMatrix: modelMatrix,
-  u_ProjMatrix: projMatrix,
   u_ViewMatrix: viewMatrix,
 };
 
@@ -127,36 +95,24 @@ onMounted(() => {
   gl.clearColor(1.0, 0.0, 0.0, 0.3);
   gl.clear(gl.COLOR_BUFFER_BIT);
   // 创建缓冲区信息
-  const bufferInfo1 = twgl.createBufferInfoFromArrays(gl, arrays1);
-  const bufferInfo2 = twgl.createBufferInfoFromArrays(gl, arrays2);
-  var eye = vec3.fromValues(params.eye.x, params.eye.y, params.eye.z);
+  const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
+  // 设置视点
+  var eye = vec3.fromValues(0, 0, 0.25);
+  // 目标点
   var center = vec3.fromValues(0, 0, 0);
+  // 上方向
   var up = vec3.fromValues(0, 1, 0);
   // 视图矩阵
   mat4.lookAt(viewMatrix, eye, center, up);
-  // 透视投影
-  mat4.perspective(
-    projMatrix,
-    (60 * Math.PI) / 180,
-    1,
-    params.near,
-    params.far
-  );
+  uniform.u_ViewMatrix = viewMatrix;
+  // 设置attribute
+  twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
   // 设置uniform
   twgl.setUniforms(programInfo, uniform);
-  // 开启隐藏面消除
-  gl.enable(gl.DEPTH_TEST);
   // 清空颜色缓冲区
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  // 设置attribute，绘制图形
-  twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo1);
-  twgl.drawBufferInfo(gl, bufferInfo1, gl.TRIANGLES);
-  // 开启多边形偏移
-  gl.enable(gl.POLYGON_OFFSET_FILL);
-  gl.polygonOffset(1.0, 1.0);
-  // 设置attribute，绘制图形
-  twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo2);
-  twgl.drawBufferInfo(gl, bufferInfo2, gl.TRIANGLES);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  // 绘制图形
+  twgl.drawBufferInfo(gl, bufferInfo, gl.TRIANGLES);
 
   // 监听面板变化
   pane.on("change", () => {
@@ -169,24 +125,10 @@ onMounted(() => {
       center,
       up
     );
-    mat4.perspective(
-      projMatrix,
-      (60 * Math.PI) / 180,
-      1,
-      params.near,
-      params.far
-    );
+    uniform.u_ModelMatrix = modelMatrix;
     twgl.setUniforms(programInfo, uniform);
-    gl.enable(gl.DEPTH_TEST);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    // 关闭多边形偏移（如果不关闭，此时的多边形还是按照偏移的绘制，依旧会产生深度冲突）
-    gl.disable(gl.POLYGON_OFFSET_FILL);
-    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo1);
-    twgl.drawBufferInfo(gl, bufferInfo1, gl.TRIANGLES);
-    // 开启多边形偏移
-    gl.enable(gl.POLYGON_OFFSET_FILL);
-    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo2);
-    twgl.drawBufferInfo(gl, bufferInfo2, gl.TRIANGLES);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    twgl.drawBufferInfo(gl, bufferInfo, gl.TRIANGLE_FAN);
   });
 });
 </script>

@@ -17,9 +17,9 @@ let params = {
   near: 1.0,
   far: 20.0,
   eye: {
-    x: 0.1,
-    y: 0.2,
-    z: 0.9,
+    x: 0,
+    y: 0,
+    z: 5,
   },
 };
 pane.addBinding(params, "x", {
@@ -83,24 +83,21 @@ pane.addBinding(params, "far", {
   label: "远裁剪面",
 });
 
-let arrays1 = {
+let arrays = {
   a_Position: {
     numComponents: 3,
-    data: [0, 2.5, -4.0, -2.5, -2.5, -4.0, 2.5, -2.5, -4.0],
+    data: [
+      0.75, 1.0, -2.0, 0.25, -1.0, -2.0, 1.25, -1.0, -2.0, 0.75, 1.0, -4.0,
+      0.25, -1.0, -4.0, 1.25, -1.0, -4.0, 0.75, 1.0, -6.0, 0.25, -1.0, -6.0,
+      1.25, -1, -6.0,
+    ],
   },
   a_Color: {
     numComponents: 3,
-    data: [1, 0, 0, 1, 0, 0, 1, 0, 0],
-  },
-};
-let arrays2 = {
-  a_Position: {
-    numComponents: 3,
-    data: [0, 3.0, -4.0, -3, -3, -4.0, 3, -3.0, -4.0],
-  },
-  a_Color: {
-    numComponents: 3,
-    data: [0, 1, 0, 0, 1, 0, 0, 1, 0],
+    data: [
+      1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0,
+      0, 1,
+    ],
   },
 };
 
@@ -127,8 +124,9 @@ onMounted(() => {
   gl.clearColor(1.0, 0.0, 0.0, 0.3);
   gl.clear(gl.COLOR_BUFFER_BIT);
   // 创建缓冲区信息
-  const bufferInfo1 = twgl.createBufferInfoFromArrays(gl, arrays1);
-  const bufferInfo2 = twgl.createBufferInfoFromArrays(gl, arrays2);
+  const bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
+  // 设置attribute
+  twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
   var eye = vec3.fromValues(params.eye.x, params.eye.y, params.eye.z);
   var center = vec3.fromValues(0, 0, 0);
   var up = vec3.fromValues(0, 1, 0);
@@ -148,21 +146,15 @@ onMounted(() => {
   gl.enable(gl.DEPTH_TEST);
   // 清空颜色缓冲区
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  // 设置attribute，绘制图形
-  twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo1);
-  twgl.drawBufferInfo(gl, bufferInfo1, gl.TRIANGLES);
-  // 开启多边形偏移
-  gl.enable(gl.POLYGON_OFFSET_FILL);
-  gl.polygonOffset(1.0, 1.0);
-  // 设置attribute，绘制图形
-  twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo2);
-  twgl.drawBufferInfo(gl, bufferInfo2, gl.TRIANGLES);
+  // 绘制图形
+  twgl.drawBufferInfo(gl, bufferInfo, gl.TRIANGLES);
 
   // 监听面板变化
   pane.on("change", () => {
     mat4.translate(modelMatrix, mat4.create(), [params.x, params.y, 0]);
     mat4.rotateZ(modelMatrix, modelMatrix, (params.theta * Math.PI) / 180);
     mat4.scale(modelMatrix, modelMatrix, [params.scaleX, params.scaleY, 1]);
+
     mat4.lookAt(
       viewMatrix,
       vec3.fromValues(params.eye.x, params.eye.y, params.eye.z),
@@ -179,14 +171,7 @@ onMounted(() => {
     twgl.setUniforms(programInfo, uniform);
     gl.enable(gl.DEPTH_TEST);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    // 关闭多边形偏移（如果不关闭，此时的多边形还是按照偏移的绘制，依旧会产生深度冲突）
-    gl.disable(gl.POLYGON_OFFSET_FILL);
-    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo1);
-    twgl.drawBufferInfo(gl, bufferInfo1, gl.TRIANGLES);
-    // 开启多边形偏移
-    gl.enable(gl.POLYGON_OFFSET_FILL);
-    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo2);
-    twgl.drawBufferInfo(gl, bufferInfo2, gl.TRIANGLES);
+    twgl.drawBufferInfo(gl, bufferInfo, gl.TRIANGLES);
   });
 });
 </script>
